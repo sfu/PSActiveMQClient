@@ -51,8 +51,7 @@
     }
 
     Write-Debug ( "Running $($MyInvocation.MyCommand).`n" +
-                    "PSBoundParameters:$( $PSBoundParameters | Format-List | Out-String)" +
-                    "Invoke-RestMethod parameters:`n$($IRMParams | Format-List | Out-String)")
+                    "PSBoundParameters:$( $PSBoundParameters | Format-List | Out-String)")
 
     Try
     {
