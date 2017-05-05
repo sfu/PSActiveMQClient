@@ -120,12 +120,11 @@
         }
         else
         {
-            $Message = $Consumer.ReceiveNoWait()
+            $Message = $Consumer.Receive([System.TimeSpan]::FromTicks(10000))
         }
-        if ($Message -ne $null)
-        {
-            $Message
-        }
+       
+        $Message
+        
         $loopCount++
 
     } until ($Message -eq $null -or !$All)
