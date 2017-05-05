@@ -1,4 +1,4 @@
-﻿Function New-ActiveMQSesssion {
+﻿Function New-ActiveMQSession {
     <#
     .SYNOPSIS
         Establish a Connection and Session with a remote ActiveMQ Message Broker
