@@ -11,16 +11,19 @@
     .PARAMETER Uri
         The ActiveMQ Uri for the Message Broker. Refer to ActiveMQ documentation for full documentation on URIs supported
         Default: activemq:tcp://localhost:61616
+
+        Passing a URI will force messages to be auto-acknowledged, as the connection will close as soon as this cmdlet completes.  
+        Auto-acknowledged messages can only be retrieved once. If an error occurs further down the pipeline and the message hasn't been saved, 
+        the message will be lost. To acknowledge messages individually upon successfully processing them, pass in a Session and call 
+        the .Acknowledge() method on the $Message object that this cmdlet returns.
+        Refer to the Apache NMS API documentation for further info on the different Acknowledge modes
+
+        It is recommended you establish a session separately if message loss can not be tolerated. 
     .PARAMETER User
         If not providing an existing session, the Username to authenticate with
         Example: 'admin'
     .PARAMETER Password
         If not providing an existing session, the Password to authenticate with
-    .PARAMETER AcknowledgementMode
-        If not providing an existing session, how to acknowledge messages (the default is not to). One of [AutoAcknowledge,DupsOkAcknowledge,ClientAcknowledge,Transactional, or IndividualAcknowledge].
-        Auto-acknowledged messages can only be retrieved once. If an error occurs further down the pipeline and the message hasn't been saved, 
-        the message will be lost. To acknowledge a messsage, call the .Acknowledge() method on the $Message object that this cmdlet returns.
-        Refer to the Apache NMS API documentation for further info on the different Acknowledge modes
     .PARAMETER All
         Return all messages intsead of just the first one in the queue
     .PARAMETER Wait
@@ -54,12 +57,15 @@
         [Parameter(ParameterSetName='byUri',Mandatory=$true)]
             [String]$Password,
         [Parameter(ParameterSetName='byUri')]
-            [Apache.NMS.AcknowledgementMode]$AcknowledgementMode = [Apache.NMS.AcknowledgementMode]::IndividualAcknowledge,
+            [switch]$All,
         [Parameter(ParameterSetName='bySession')]
             [Apache.NMS.ISession]$Session,
-        [parameter(Mandatory=$false)][int]$WaitTime,
-        [switch]$All
+        [parameter(Mandatory=$false)][int]$WaitTime
     )
+
+    # If we're establishing our own session, we *must* acknowledge the message immediately, because the connection will be gone
+    # as soon as we exit
+    [Apache.NMS.AcknowledgementMode]$AcknowledgementMode = [Apache.NMS.AcknowledgementMode]::AutoAcknowledge
  
     # This should have been handled by the module load code, but just in case..
 
@@ -83,7 +89,7 @@
             $factory =  New-Object Apache.NMS.NMSConnectionFactory($uriobj)
             $connection = $factory.CreateConnection($User, $Password)
             $connection.Start()
-            $Session = $connection.CreateSession($AutoAcknowledge)
+            $Session = $connection.CreateSession($AcknowledgementMode)
         }
         Catch
         {
@@ -98,10 +104,34 @@
     $Target = [Apache.NMS.Util.SessionUtil]::GetDestination($Session, "queue://$Queue")
     $Consumer = $Session.CreateConsumer($Target)
 
+    $loopCount = 0
+    do
+    {
+        if ($WaitTime -and $loopCount -eq 0)
+        {
+            if ($WaitTime -eq 0)
+            {
+                $Message = $Consumer.Receive()
+            }
+            else
+            {
+                $Message = $Consumer.Receive([System.TimeSpan]::FromSeconds($WaitTime))
+            }
+        }
+        else
+        {
+            $Message = $Consumer.ReceiveNoWait()
+        }
+        if ($Message -ne $null)
+        {
+            $Message
+        }
+        $loopCount++
 
+    } until ($Message -eq $null -or !$All)
 
-  
-
-
-    
+    if ($connection)
+    {
+        $connection.Close()
+    }
 }
