@@ -130,6 +130,9 @@
 
     } until ($Message -eq $null -or !$All)
 
+    $Consumer.Close()
+    $Consumer.Dispose()
+
     if ($connection)
     {
         $connection.Close()

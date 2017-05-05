@@ -22,6 +22,9 @@
     param(
         [parameter(Mandatory=$True,Position=1)][Apache.NMS.ISession]$Session
     )
-    $Session.Connection.Close()
-
+    $Connection = $Session.Connection
+    $Session.Close()
+    $Sessiom.Dispose()
+    $Connection.Close()
+    $Connection.Dispose()
 }
