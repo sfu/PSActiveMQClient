@@ -24,7 +24,7 @@
     )
     $Connection = $Session.Connection
     $Session.Close()
-    $Sessiom.Dispose()
+    $Session.Dispose()
     $Connection.Close()
     $Connection.Dispose()
 }

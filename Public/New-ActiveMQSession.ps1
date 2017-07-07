@@ -12,6 +12,16 @@
         Example: 'admin'
     .PARAMETER Password
         Password to authenticate with
+    .PARAMETER ClientAcknowledge
+        Set acknowledgement mode to ClientAcknowledge. Each message must be manually acknowledged once successfully processed.
+        Acknowledging a message ack's all messages prior to it in the queue (this is not usually an issue as messages are received
+        in a FIFO fashion)
+        The default Acknowledgement Mode is AutoAcknowledge which automatically acknowledges every message as soon as it's received
+    .PARAMETER DupsOkAcknowledge
+        Set acknowledgement mode to DupsOkAcknowledge. The Acknowledgement mode switches are mutually exclusive
+    .PARAMETER IndividualAcknowledge
+        Set acknowledgement mode to IndividualAcknowledge. In this mode, each message is individually acknowledged and ack'ing one does
+        NOT automatically ack earlier messages in the queue
     .EXAMPLE
         $Session = New-ActiveMQSession -Uri activemq:tcp://broker.example.com:61616 -User admin -Password admin
         Connect to broker.example.com and return an NMS ISession object. Then:
@@ -28,6 +38,8 @@
         http://activemq.apache.org/nms/nms-api.html
     .LINK
         http://activemq.apache.org/nms/activemq-uri-configuration.html
+    .LINK
+        http://activemq.apache.org/nms/msdoc/1.6.0/vs2005/Output/html/T_Apache_NMS_AcknowledgementMode.htm
     #>
 
 
@@ -35,7 +47,10 @@
     param(
         [parameter(Mandatory=$false)][string]$Uri = 'activemq:tcp://localhost:61616',
         [parameter(Mandatory=$false)][string]$User,  
-        [parameter(Mandatory=$false)][String]$Password
+        [parameter(Mandatory=$false)][String]$Password,
+        [parameter(ParameterSetName="ca")][Switch]$ClientAcknowledge,
+        [parameter(ParameterSetName="da")][Switch]$DupsOkAcknowledge,
+        [parameter(ParameterSetName="ia")][Switch]$IndividualAcknowledge
     )
 
  
@@ -53,13 +68,28 @@
     Write-Debug ( "Running $($MyInvocation.MyCommand).`n" +
                     "PSBoundParameters:$( $PSBoundParameters | Format-List | Out-String)")
 
+    [Apache.NMS.AcknowledgementMode]$AcknowledgementMode = [Apache.NMS.AcknowledgementMode]::AutoAcknowledge
+
+    if ($ClientAcknowledge)
+    {
+        [Apache.NMS.AcknowledgementMode]$AcknowledgementMode = [Apache.NMS.AcknowledgementMode]::ClientAcknowledge
+    }
+    elseif ($DupsOkAcknowledge)
+    {
+        [Apache.NMS.AcknowledgementMode]$AcknowledgementMode = [Apache.NMS.AcknowledgementMode]::DupsOkAcknowledge
+    }
+    elseif ($IndividualAcknowledge)
+    {
+        [Apache.NMS.AcknowledgementMode]$AcknowledgementMode = [Apache.NMS.AcknowledgementMode]::IndividualAcknowledge
+    }
+
     Try
     {
         $uriobj = [System.Uri]$Uri
         $factory =  New-Object Apache.NMS.NMSConnectionFactory($uriobj)
         $connection = $factory.CreateConnection($User, $Password)
         $connection.Start()
-        $session = $connection.CreateSession()
+        $session = $connection.CreateSession($AcknowledgementMode)
     }
     Catch
     {
